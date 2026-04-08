@@ -2,7 +2,7 @@
 
 > **[Llegeix-me en català](LLEGEIX-ME.md)**
 
-A browser-based Arduino Nano simulator for students in DAM (Multiplatform Application Development) and related vocational training programmes. Write, compile and run Arduino sketches directly in the browser — no physical board required.
+A browser-based Arduino Nano simulator for professional and vocational training. Write, compile and run Arduino sketches directly in the browser — no physical board required.
 
 Developed at an FP (Formació Professional / Vocational Training) centre in Catalonia as part of an open educational toolset.
 
