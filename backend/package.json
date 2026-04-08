@@ -1,0 +1,14 @@
+{
+  "name": "s4a-backend",
+  "version": "1.0.0",
+  "description": "Backend de compilació per al simulador Arduino Nano (ATmega328P)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "cookie-parser": "^1.4.6",
+    "uuid": "^10.0.0"
+  }
+}

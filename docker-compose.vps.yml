@@ -1,0 +1,28 @@
+services:
+  s4a:
+    build: .
+    container_name: s4a-simulator
+    restart: unless-stopped
+    networks:
+      - proxy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: "4"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.s4a-http.rule=Host(`s4a.exemple.cat`)"
+      - "traefik.http.routers.s4a-http.entrypoints=http"
+      - "traefik.http.routers.s4a-http.middlewares=s4a-redirect"
+      - "traefik.http.middlewares.s4a-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.s4a-redirect.redirectscheme.permanent=true"
+      - "traefik.http.routers.s4a.rule=Host(`s4a.exemple.cat`)"
+      - "traefik.http.routers.s4a.entrypoints=https"
+      - "traefik.http.routers.s4a.tls=true"
+      - "traefik.http.routers.s4a.tls.certresolver=letsencrypt"
+      - "traefik.http.services.s4a.loadbalancer.server.port=3000"
+
+networks:
+  proxy:
+    external: true

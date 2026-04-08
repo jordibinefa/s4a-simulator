@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>S4A — Simulador Arduino Nano</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #d1d5db;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --accent: #0369a1;
+  --accent-hover: #0284c7;
+  --error: #dc2626;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --font-sans: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+header {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 10;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  font-size: 18px;
+  color: var(--accent);
+  white-space: nowrap;
+}
+.logo svg { width: 28px; height: 28px; }
+.logo small { font-weight: 400; font-size: 12px; color: var(--text-muted); display: block; }
+
+.controls { display: flex; align-items: center; gap: 8px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 16px; border: 1px solid var(--border); border-radius: var(--radius);
+  font-family: var(--font-sans); font-size: 13px; font-weight: 500;
+  cursor: pointer; background: var(--surface); color: var(--text); transition: all 0.15s;
+}
+.btn:hover { background: #f9fafb; border-color: #9ca3af; }
+.btn-primary { background: var(--accent); color: white; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--error); color: white; border-color: var(--error); }
+.btn-danger:hover { background: #b91c1c; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-sm { padding: 4px 10px; font-size: 11px; }
+
+.examples-select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  cursor: pointer;
+  outline: none;
+  max-width: 240px;
+}
+.examples-select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(3,105,161,0.15); }
+
+.status-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 500;
+  background: #f3f4f6; color: var(--text-muted);
+}
+.status-badge.running { background: #dcfce7; color: #166534; }
+.status-badge.compiling { background: #fef3c7; color: #92400e; }
+.status-badge.error { background: #fee2e2; color: #991b1b; }
+.status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status-badge.running .status-dot { animation: pulse 1.5s infinite; }
+.status-badge.compiling .status-dot { animation: pulse 0.6s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+.speed-control { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.speed-control input[type="range"] { width: 80px; accent-color: var(--accent); }
+
+.main-container { flex: 1; display: flex; overflow: hidden; }
+
+.editor-panel { flex: 1; display: flex; flex-direction: column; min-width: 0; border-right: 1px solid var(--border); }
+.editor-wrapper { flex: 1; overflow: hidden; position: relative; }
+.editor-wrapper .cm-editor { height: 100%; font-size: 14px; }
+.editor-wrapper .cm-editor .cm-scroller { font-family: var(--font-mono) !important; }
+
+.error-panel {
+  background: #fef2f2; border-top: 2px solid var(--error); padding: 10px 16px;
+  font-family: var(--font-mono); font-size: 12px; color: #991b1b;
+  max-height: 150px; overflow-y: auto; white-space: pre-wrap; word-break: break-word; display: none;
+}
+.error-panel.visible { display: block; }
+
+.hw-panel { width: 340px; min-width: 340px; display: flex; flex-direction: column; background: var(--bg); overflow: hidden; }
+.hw-section { background: var(--surface); margin: 8px; border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.hw-section-title { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); padding: 10px 14px 6px; }
+
+.leds-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding: 10px 14px 14px; }
+.led-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.led-circle { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #d1d5db; transition: all 0.15s; }
+.led-circle.off { background: #e5e7eb; }
+.led-circle.on-white { background: #fff; border-color: #e5e7eb; box-shadow: 0 0 12px 4px rgba(255,255,255,0.9), 0 0 24px 8px rgba(200,200,255,0.4); }
+.led-circle.on-red { background: #ef4444; border-color: #dc2626; box-shadow: 0 0 12px 4px rgba(239,68,68,0.6), 0 0 24px 8px rgba(239,68,68,0.3); }
+.led-circle.on-yellow { background: #eab308; border-color: #ca8a04; box-shadow: 0 0 12px 4px rgba(234,179,8,0.6), 0 0 24px 8px rgba(234,179,8,0.3); }
+.led-circle.on-green { background: #22c55e; border-color: #16a34a; box-shadow: 0 0 12px 4px rgba(34,197,94,0.6), 0 0 24px 8px rgba(34,197,94,0.3); }
+.led-label { font-size: 11px; font-weight: 600; color: var(--text); text-align: center; line-height: 1.2; }
+.led-label small { display: block; font-weight: 400; color: var(--text-muted); font-size: 10px; }
+
+.switches-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px 14px 14px; }
+.switch-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px;
+  background: #f9fafb; border: 1px solid #e5e7eb; cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.switch-item:hover { border-color: #d1d5db; background: #f3f4f6; }
+.switch-item.active { border-color: var(--accent); background: #eff6ff; }
+.switch-toggle { width: 36px; height: 20px; border-radius: 10px; background: #d1d5db; position: relative; transition: background 0.2s; flex-shrink: 0; }
+.switch-toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: white; top: 2px; left: 2px; transition: transform 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.2); }
+.switch-item.active .switch-toggle { background: var(--accent); }
+.switch-item.active .switch-toggle::after { transform: translateX(16px); }
+.switch-label { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.switch-label small { display: block; font-weight: 400; color: var(--text-muted); font-size: 10px; }
+
+.serial-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+.analog-grid { padding: 10px 14px 14px; display: flex; flex-direction: column; gap: 10px; }
+.analog-item { display: flex; align-items: center; gap: 10px; }
+.analog-item label { font-size: 12px; font-weight: 600; color: var(--text); min-width: 28px; }
+.analog-item label small { display: block; font-weight: 400; color: var(--text-muted); font-size: 10px; }
+.analog-item input[type="range"] { flex: 1; accent-color: var(--accent); }
+.analog-item .analog-val { font-family: var(--font-mono); font-size: 12px; color: var(--text); min-width: 36px; text-align: right; }
+.serial-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px 6px; }
+.serial-output {
+  flex: 1; background: #111827; margin: 0 14px; border-radius: 6px; padding: 10px;
+  font-family: var(--font-mono); font-size: 12px; color: #4ade80;
+  overflow-y: auto; white-space: pre-wrap; word-break: break-word; min-height: 80px;
+}
+.serial-input-row { display: flex; gap: 6px; padding: 8px 14px 14px; }
+.serial-input-row input { flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-family: var(--font-mono); font-size: 12px; outline: none; }
+.serial-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(3,105,161,0.15); }
+
+@media (max-width: 900px) {
+  .main-container { flex-direction: column; }
+  .hw-panel { width: 100%; min-width: 0; max-height: 45vh; }
+  .editor-panel { border-right: none; border-bottom: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><circle cx="12" cy="14" r="3"/>
+    </svg>
+    <div>S4A Simulator<small>Arduino Nano · ATmega328P</small></div>
+  </div>
+  <div class="controls">
+    <select class="examples-select" id="examplesSelect" title="Carregar exemple">
+      <option value="">📂 Exemples…</option>
+      <optgroup label="Codi per defecte">
+        <option value="default">S4A Test 00 — botons i LEDs</option>
+      </optgroup>
+      <optgroup label="ArduinoThread">
+        <option value="thread1">Thread 1 — Thread simple (parpelleig)</option>
+        <option value="thread2">Thread 2 — ThreadController (2 LEDs)</option>
+        <option value="thread3">Thread 3 — enable/disable amb botó</option>
+      </optgroup>
+    </select>
+    <div class="speed-control">
+      <span>🐢</span>
+      <input type="range" id="speedSlider" min="1" max="100" value="50" title="Velocitat de simulació">
+      <span>🐇</span>
+    </div>
+    <span id="statusBadge" class="status-badge">
+      <span class="status-dot"></span>
+      <span id="statusText">Aturat</span>
+    </span>
+    <button class="btn btn-primary" id="btnRun">▶ Compilar i executar</button>
+    <button class="btn btn-danger" id="btnStop" disabled>■ Aturar</button>
+  </div>
+</header>
+
+<div class="main-container">
+  <div class="editor-panel">
+    <div class="editor-wrapper" id="editorWrapper"></div>
+    <div class="error-panel" id="errorPanel"></div>
+  </div>
+  <div class="hw-panel">
+    <div class="hw-section">
+      <div class="hw-section-title">LEDs de sortida</div>
+      <div class="leds-grid">
+        <div class="led-item"><div class="led-circle off" id="led-d10"></div><div class="led-label">D10<small>LED_W</small></div></div>
+        <div class="led-item"><div class="led-circle off" id="led-d11"></div><div class="led-label">D11<small>LED_R</small></div></div>
+        <div class="led-item"><div class="led-circle off" id="led-d12"></div><div class="led-label">D12<small>LED_Y</small></div></div>
+        <div class="led-item"><div class="led-circle off" id="led-d13"></div><div class="led-label">D13<small>LED_G</small></div></div>
+      </div>
+    </div>
+    <div class="hw-section">
+      <div class="hw-section-title">Switches d'entrada (INPUT_PULLUP)</div>
+      <div class="switches-grid">
+        <div class="switch-item" data-pin="d2"><div class="switch-toggle"></div><div class="switch-label">D2<small>BOTO_2</small></div></div>
+        <div class="switch-item" data-pin="d3"><div class="switch-toggle"></div><div class="switch-label">D3<small>BOTO_3</small></div></div>
+        <div class="switch-item" data-pin="a4"><div class="switch-toggle"></div><div class="switch-label">A4<small>BOTO_A4</small></div></div>
+        <div class="switch-item" data-pin="a5"><div class="switch-toggle"></div><div class="switch-label">A5<small>BOTO_A5</small></div></div>
+      </div>
+    </div>
+    <div class="hw-section">
+      <div class="hw-section-title">Entrades analògiques (ADC)</div>
+      <div class="analog-grid">
+        <div class="analog-item">
+          <label>A1<small>ADC1</small></label>
+          <input type="range" id="adcSliderA1" min="0" max="1023" value="511">
+          <span class="analog-val" id="adcValA1">511</span>
+        </div>
+        <div class="analog-item">
+          <label>A2<small>ADC2</small></label>
+          <input type="range" id="adcSliderA2" min="0" max="1023" value="511">
+          <span class="analog-val" id="adcValA2">511</span>
+        </div>
+      </div>
+    </div>
+    <div class="hw-section serial-section">
+      <div class="serial-header">
+        <div class="hw-section-title" style="padding:0">Serial Monitor</div>
+        <button class="btn btn-sm" id="btnClearSerial">Netejar</button>
+      </div>
+      <div class="serial-output" id="serialOutput"></div>
+      <div class="serial-input-row">
+        <input type="text" id="serialInput" placeholder="Enviar al Serial...">
+        <button class="btn btn-sm" id="btnSendSerial">Enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import {
+  EditorView, basicSetup, cpp, EditorState,
+  CPU, avrInstruction,
+  AVRTimer, timer0Config, timer1Config, timer2Config,
+  AVRIOPort, portBConfig, portCConfig, portDConfig,
+  AVRUSART, usart0Config
+} from './deps.bundle.js';
+
+// ============================================================
+// EDITOR
+// ============================================================
+const defaultCode = `#define BOTO_02 2
+#define LED_13 13
+#define BOTO_03 3
+#define LED_12 12
+#define BOTO_A5 A5
+#define LED_11 11
+#define BOTO_A4 A4
+#define LED_10 10
+
+void setup(){
+  Serial.begin(9600);
+  pinMode(BOTO_02,INPUT);
+  pinMode(LED_13,OUTPUT);
+  pinMode(BOTO_03,INPUT);
+  pinMode(LED_12,OUTPUT);
+  pinMode(BOTO_A5,INPUT);
+  pinMode(LED_11,OUTPUT);
+  pinMode(BOTO_A4,INPUT);
+  pinMode(LED_10,OUTPUT);
+}
+
+boolean bPremut(int nQuinBoto){
+  if(digitalRead(nQuinBoto))
+    return false;
+  return true;
+}
+
+void vTrametEstat(boolean b){
+  if(b)
+    Serial.print("1");
+  else
+    Serial.print("0");
+}
+
+void vTrametValorsJoystick(){
+  Serial.print("(");
+  Serial.print(analogRead(A1));
+  Serial.print(",");
+  Serial.print(analogRead(A2));
+  Serial.print(")");
+}
+
+void loop(){
+  static boolean bEstavaPremutBoto02 = false;
+  static boolean bEstavaPremutBoto03 = false;
+  static boolean bEstavaPremutBotoA5 = false;
+  static boolean bEstavaPremutBotoA4 = false;
+  static boolean bEstatLED_13 = false,bUltimEstatLED_13 = false;
+  static boolean bEstatLED_12 = false,bUltimEstatLED_12 = false;
+  static boolean bEstatLED_11 = false,bUltimEstatLED_11 = false;
+  static boolean bEstatLED_10 = false,bUltimEstatLED_10 = false;
+  boolean bEstatBOTO_02 = bPremut(BOTO_02);
+  boolean bEstatBOTO_03 = bPremut(BOTO_03);
+  boolean bEstatBOTO_A5 = bPremut(BOTO_A5);
+  boolean bEstatBOTO_A4 = bPremut(BOTO_A4);
+  char ch;
+
+  if(bEstavaPremutBoto02 != bEstatBOTO_02){
+    delay(10);
+    if(bEstatBOTO_02){
+      bEstatLED_13 = !bEstatLED_13;
+    }
+    bEstavaPremutBoto02 = bEstatBOTO_02;
+  }
+  if(bEstavaPremutBoto03 != bEstatBOTO_03){
+    delay(10);
+    if(bEstatBOTO_03){
+      bEstatLED_12 = !bEstatLED_12;
+    }
+    bEstavaPremutBoto03 = bEstatBOTO_03;
+  }
+  if(bEstavaPremutBotoA5 != bEstatBOTO_A5){
+    delay(10);
+    if(bEstatBOTO_A5){
+      bEstatLED_11 = !bEstatLED_11;
+    }
+    bEstavaPremutBotoA5 = bEstatBOTO_A5;
+  }
+  if(bEstavaPremutBotoA4 != bEstatBOTO_A4){
+    delay(10);
+    if(bEstatBOTO_A4){
+      bEstatLED_10 = !bEstatLED_10;
+    }
+    bEstavaPremutBotoA4 = bEstatBOTO_A4;
+  }
+
+  if (Serial.available() > 0) {
+    ch = Serial.read();
+    if(ch == 'a') bEstatLED_13 = false;
+    if(ch == 'e') bEstatLED_13 = true;
+    if(ch == 'A') bEstatLED_12 = false;
+    if(ch == 'E') bEstatLED_12 = true;
+    if(ch == 'f') bEstatLED_11 = false;
+    if(ch == 'n') bEstatLED_11 = true;
+    if(ch == 'F') bEstatLED_10 = false;
+    if(ch == 'N') bEstatLED_10 = true;
+  }
+
+  digitalWrite(LED_13, bEstatLED_13);
+  digitalWrite(LED_12, bEstatLED_12);
+  digitalWrite(LED_11, bEstatLED_11);
+  digitalWrite(LED_10, bEstatLED_10);
+
+  vTrametEstat(bEstatBOTO_02);
+  vTrametEstat(bEstatBOTO_03);
+  vTrametEstat(bEstatBOTO_A5);
+  vTrametEstat(bEstatBOTO_A4);
+  vTrametEstat(bEstatLED_13);
+  vTrametEstat(bEstatLED_12);
+  vTrametEstat(bEstatLED_11);
+  vTrametEstat(bEstatLED_10);
+  vTrametValorsJoystick();
+  Serial.println("");
+
+  delay(200);
+}`;
+
+// ============================================================
+// EXEMPLES ArduinoThread
+// ============================================================
+const examples = {
+  default: defaultCode,
+
+  // -----------------------------------------------------------
+  // EXEMPLE 1: Thread simple
+  // Un sol Thread que parpelleja el LED_G (pin 13) cada 500 ms.
+  // Concepte clau: crear un Thread, assignar-li un callback amb
+  // onRun() i un interval amb setInterval(), i cridar run() quan
+  // shouldRun() retorna true.
+  // -----------------------------------------------------------
+  thread1: `#include <Thread.h>
+
+#define LED_G 13   // LED verd (sortida)
+
+// Creem un objecte Thread global
+Thread threadParpelleig = Thread();
+
+// Callback que s'executarà cada vegada que el Thread "dispari"
+void cbParpelleig() {
+  static bool estat = false;
+  estat = !estat;
+  digitalWrite(LED_G, estat);
+  Serial.print("LED_G -> ");
+  Serial.print(estat ? "ON" : "OFF");
+  Serial.print("  (ms=");
+  Serial.print(millis());
+  Serial.println(")");
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(LED_G, OUTPUT);
+
+  // Configurem el Thread: callback + interval en ms
+  threadParpelleig.onRun(cbParpelleig);
+  threadParpelleig.setInterval(500);
+
+  Serial.println("Exemple 1: Thread simple");
+}
+
+void loop() {
+  // Comprovem si el Thread ha de disparar i, si cal, l'executem
+  if (threadParpelleig.shouldRun())
+    threadParpelleig.run();
+
+  // Aquí podríem fer altres tasques sense bloquejar
+}`,
+
+  // -----------------------------------------------------------
+  // EXEMPLE 2: ThreadController — dos Threads independents
+  // LED_G (pin 13) parpelleja cada 600 ms.
+  // LED_R (pin 11) parpelleja cada 250 ms.
+  // El ThreadController crida run() per a tots dos des del loop()
+  // amb una sola instrucció: controller.run()
+  // -----------------------------------------------------------
+  thread2: `#include <Thread.h>
+#include <ThreadController.h>
+
+#define LED_G 13   // LED verd — interval llarg
+#define LED_R 11   // LED vermell — interval curt
+
+// Controlador que gestiona tots els Threads
+ThreadController controller = ThreadController();
+
+// Dos Threads independents
+Thread threadVerd  = Thread();
+Thread threadVermell = Thread();
+
+void cbVerd() {
+  static bool estat = false;
+  estat = !estat;
+  digitalWrite(LED_G, estat);
+  Serial.print("VERD  ");
+  Serial.println(estat ? "ON " : "OFF");
+}
+
+void cbVermell() {
+  static bool estat = false;
+  estat = !estat;
+  digitalWrite(LED_R, estat);
+  Serial.print("  VERMELL ");
+  Serial.println(estat ? "ON " : "OFF");
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(LED_G, OUTPUT);
+  pinMode(LED_R, OUTPUT);
+
+  // Thread verd: cada 600 ms
+  threadVerd.onRun(cbVerd);
+  threadVerd.setInterval(600);
+
+  // Thread vermell: cada 250 ms
+  threadVermell.onRun(cbVermell);
+  threadVermell.setInterval(250);
+
+  // Afegim els dos Threads al controlador
+  controller.add(&threadVerd);
+  controller.add(&threadVermell);
+
+  Serial.println("Exemple 2: ThreadController (2 LEDs)");
+}
+
+void loop() {
+  // Una sola crida gestiona tots els Threads
+  controller.run();
+}`,
+
+  // -----------------------------------------------------------
+  // EXEMPLE 3: enable / disable
+  // LED_G (pin 13) parpelleja cada 400 ms gestionat per un Thread.
+  // El botó D2 (actiu a LOW) activa/desactiva el Thread en cada
+  // pulsació. Quan el Thread està desactivat, el LED s'apaga.
+  // Concepte clau: la propietat Thread.enabled
+  // -----------------------------------------------------------
+  thread3: `#include <Thread.h>
+
+#define LED_G  13   // LED verd (sortida)
+#define BOTO_2  2   // Botó D2 (INPUT, actiu a LOW)
+
+Thread threadParpelleig = Thread();
+
+void cbParpelleig() {
+  static bool estat = false;
+  estat = !estat;
+  digitalWrite(LED_G, estat);
+}
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(LED_G, OUTPUT);
+  pinMode(BOTO_2, INPUT);  // El simulador usa INPUT (no PULLUP)
+
+  threadParpelleig.onRun(cbParpelleig);
+  threadParpelleig.setInterval(400);
+
+  Serial.println("Exemple 3: enable/disable amb boto");
+  Serial.println("Prem D2 per activar/desactivar el Thread");
+}
+
+void loop() {
+  // Detecció de flanc de baixada del botó (amb antirebot mínim)
+  static bool premutAnterior = false;
+  bool premutAra = (digitalRead(BOTO_2) == LOW);
+
+  if (premutAra && !premutAnterior) {
+    delay(20);  // antirebot
+    // Commuta l'estat enabled del Thread
+    threadParpelleig.enabled = !threadParpelleig.enabled;
+
+    if (threadParpelleig.enabled) {
+      Serial.println("Thread ACTIVAT");
+    } else {
+      Serial.println("Thread DESACTIVAT");
+      digitalWrite(LED_G, LOW);  // Apaguem el LED en deshabilitar
+    }
+  }
+  premutAnterior = premutAra;
+
+  // Executem el Thread només si està habilitat i ha de disparar
+  if (threadParpelleig.shouldRun())
+    threadParpelleig.run();
+}`
+};
+
+const savedCode = localStorage.getItem('s4a_code');
+
+const editor = new EditorView({
+  state: EditorState.create({
+    doc: savedCode || defaultCode,
+    extensions: [
+      basicSetup,
+      cpp(),
+      EditorView.theme({
+        '&': { height: '100%' },
+        '.cm-scroller': { overflow: 'auto' },
+        '.cm-content': { fontFamily: 'var(--font-mono)', fontSize: '14px' },
+        '.cm-gutters': { backgroundColor: '#f9fafb', borderRight: '1px solid #e5e7eb' },
+      }),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) {
+          localStorage.setItem('s4a_code', update.state.doc.toString());
+        }
+      })
+    ]
+  }),
+  parent: document.getElementById('editorWrapper')
+});
+
+// Listener del selector d'exemples (ha d'anar després de crear l'editor)
+document.getElementById('examplesSelect').addEventListener('change', function() {
+  const key = this.value;
+  if (!key || !examples[key]) { this.value = ''; return; }
+  editor.dispatch({
+    changes: { from: 0, to: editor.state.doc.length, insert: examples[key] }
+  });
+  localStorage.setItem('s4a_code', examples[key]);
+  this.value = '';  // Reseteja per permetre re-seleccionar el mateix exemple
+});
+
+// ============================================================
+// DOM REFS
+// ============================================================
+const ledEls = {
+  d10: document.getElementById('led-d10'),
+  d11: document.getElementById('led-d11'),
+  d12: document.getElementById('led-d12'),
+  d13: document.getElementById('led-d13'),
+};
+const serialOutput = document.getElementById('serialOutput');
+const serialInput = document.getElementById('serialInput');
+const statusBadge = document.getElementById('statusBadge');
+const statusText = document.getElementById('statusText');
+const errorPanel = document.getElementById('errorPanel');
+const btnRun = document.getElementById('btnRun');
+const btnStop = document.getElementById('btnStop');
+const speedSlider = document.getElementById('speedSlider');
+
+// ============================================================
+// STATE
+// ============================================================
+let running = false;
+let cpu = null;
+let animFrameId = null;
+let currentUSART = null;
+let serialBuffer = '';
+const switchState = { d2: false, d3: false, a4: false, a5: false };
+const adcValues = { 1: 511, 2: 511 }; // Canal ADC -> valor (0-1023)
+
+// ADC slider handlers
+const adcSliderA1 = document.getElementById('adcSliderA1');
+const adcSliderA2 = document.getElementById('adcSliderA2');
+const adcValA1 = document.getElementById('adcValA1');
+const adcValA2 = document.getElementById('adcValA2');
+adcSliderA1.addEventListener('input', () => { adcValues[1] = parseInt(adcSliderA1.value); adcValA1.textContent = adcSliderA1.value; });
+adcSliderA2.addEventListener('input', () => { adcValues[2] = parseInt(adcSliderA2.value); adcValA2.textContent = adcSliderA2.value; });
+
+// ============================================================
+// HELPERS
+// ============================================================
+function setStatus(cls, text) {
+  statusBadge.className = 'status-badge ' + cls;
+  statusText.textContent = text;
+}
+function showError(msg) { errorPanel.textContent = msg; errorPanel.classList.add('visible'); }
+function hideError() { errorPanel.classList.remove('visible'); }
+
+function updateLEDs(cpuRef) {
+  // PORTB register is at address 0x25 in ATmega328P
+  const portBValue = cpuRef.data[0x25];
+  const pins = [
+    { el: ledEls.d10, bit: 2, color: 'white' },   // PB2
+    { el: ledEls.d11, bit: 3, color: 'red' },      // PB3
+    { el: ledEls.d12, bit: 4, color: 'yellow' },   // PB4
+    { el: ledEls.d13, bit: 5, color: 'green' },    // PB5
+  ];
+  for (const { el, bit, color } of pins) {
+    const on = (portBValue >> bit) & 1;
+    el.className = 'led-circle ' + (on ? 'on-' + color : 'off');
+  }
+}
+
+function appendSerial(text) {
+  serialBuffer += text;
+  if (serialBuffer.length > 50000) serialBuffer = serialBuffer.slice(-40000);
+  serialOutput.textContent = serialBuffer;
+  serialOutput.scrollTop = serialOutput.scrollHeight;
+}
+
+function parseIntelHex(hex) {
+  const result = new Uint8Array(0x8000);
+  for (const line of hex.split('\n')) {
+    const t = line.trim();
+    if (!t.startsWith(':')) continue;
+    const bytes = [];
+    for (let i = 1; i < t.length; i += 2) {
+      const b = parseInt(t.substr(i, 2), 16);
+      if (isNaN(b)) break;
+      bytes.push(b);
+    }
+    if (bytes.length < 5) continue;
+    const len = bytes[0], addr = (bytes[1] << 8) | bytes[2], type = bytes[3];
+    if (type === 0) {
+      for (let i = 0; i < len && (4 + i) < bytes.length; i++) {
+        if (addr + i < result.length) result[addr + i] = bytes[4 + i];
+      }
+    } else if (type === 1) break;
+  }
+  return result;
+}
+
+// ============================================================
+// SWITCHES
+// ============================================================
+document.querySelectorAll('.switch-item').forEach(el => {
+  el.addEventListener('click', () => {
+    const pin = el.dataset.pin;
+    switchState[pin] = !switchState[pin];
+    el.classList.toggle('active', switchState[pin]);
+  });
+});
+
+// ============================================================
+// SERIAL I/O
+// ============================================================
+document.getElementById('btnClearSerial').addEventListener('click', () => {
+  serialOutput.textContent = '';
+  serialBuffer = '';
+});
+
+function sendSerial() {
+  const text = serialInput.value;
+  if (!text || !currentUSART) return;
+  for (const ch of text) currentUSART.writeByte(ch.charCodeAt(0));
+  currentUSART.writeByte(10);
+  serialInput.value = '';
+}
+document.getElementById('btnSendSerial').addEventListener('click', sendSerial);
+serialInput.addEventListener('keydown', e => { if (e.key === 'Enter') sendSerial(); });
+
+// ============================================================
+// COMPILE & RUN
+// ============================================================
+btnRun.addEventListener('click', async () => {
+  const code = editor.state.doc.toString();
+  if (!code) return;
+
+  hideError();
+  setStatus('compiling', 'Compilant...');
+  btnRun.disabled = true;
+
+  try {
+    const resp = await fetch('/compile', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+      credentials: 'same-origin'
+    });
+    const data = await resp.json();
+
+    if (!data.success) {
+      showError(data.error);
+      setStatus('error', 'Error de compilació');
+      btnRun.disabled = false;
+      return;
+    }
+
+    if (running) stopSim();
+    startSim(data.hex);
+  } catch (err) {
+    showError('Error de connexió: ' + err.message);
+    setStatus('error', 'Error');
+    btnRun.disabled = false;
+  }
+});
+
+// ============================================================
+// SIMULATION
+// ============================================================
+function startSim(hexString) {
+  const program = parseIntelHex(hexString);
+  const flash = new Uint16Array(program.buffer);
+  cpu = new CPU(flash);
+
+  const portB = new AVRIOPort(cpu, portBConfig);
+  const portC = new AVRIOPort(cpu, portCConfig);
+  const portD = new AVRIOPort(cpu, portDConfig);
+
+  new AVRTimer(cpu, timer0Config);
+  new AVRTimer(cpu, timer1Config);
+  new AVRTimer(cpu, timer2Config);
+
+  const usart = new AVRUSART(cpu, usart0Config, cpu.clock);
+  currentUSART = usart;
+  usart.onByteTransmit = (byte) => appendSerial(String.fromCharCode(byte));
+
+  // ---- ADC Simulation ----
+  // ATmega328P ADC registers (memory-mapped addresses)
+  const ADMUX  = 0x7C;
+  const ADCSRA = 0x7A;
+  const ADCL   = 0x78;
+  const ADCH   = 0x79;
+  const ADSC_BIT = 6;  // Start Conversion bit position
+
+  // When Arduino code writes to ADCSRA with ADSC=1, do instant conversion
+  cpu.writeHooks[ADCSRA] = (value) => {
+    if (value & (1 << ADSC_BIT)) {
+      const mux = cpu.data[ADMUX] & 0x0F;
+      const adlar = (cpu.data[ADMUX] >> 5) & 1;
+      const adcVal = adcValues[mux] !== undefined ? adcValues[mux] : 0;
+
+      if (adlar) {
+        cpu.data[ADCH] = (adcVal >> 2) & 0xFF;
+        cpu.data[ADCL] = (adcVal << 6) & 0xC0;
+      } else {
+        cpu.data[ADCL] = adcVal & 0xFF;
+        cpu.data[ADCH] = (adcVal >> 8) & 0x03;
+      }
+
+      // Write ADCSRA with ADSC cleared (conversion done instantly)
+      cpu.data[ADCSRA] = value & ~(1 << ADSC_BIT);
+      return true; // We handled the write
+    }
+  };
+
+  // When Arduino code reads ADCSRA (polling ADSC), ensure ADSC is always 0
+  cpu.readHooks[ADCSRA] = () => {
+    return cpu.data[ADCSRA] & ~(1 << ADSC_BIT);
+  };
+
+  function updateInputPins() {
+    portD.setPin(2, !switchState.d2);
+    portD.setPin(3, !switchState.d3);
+    portC.setPin(4, !switchState.a4);
+    portC.setPin(5, !switchState.a5);
+  }
+
+  running = true;
+  setStatus('running', 'Executant');
+  btnRun.disabled = true;
+  btnStop.disabled = false;
+
+  const cpuFreq = 16e6;
+  let lastTime = performance.now();
+
+  function simLoop() {
+    if (!running) return;
+    const now = performance.now();
+    const dt = Math.min(now - lastTime, 50);
+    lastTime = now;
+
+    const speed = speedSlider.value / 50;
+    const cycles = Math.min(Math.floor(cpuFreq * (dt / 1000) * speed), 1000000);
+
+    updateInputPins();
+    for (let i = 0; i < cycles; i++) {
+      avrInstruction(cpu);
+      cpu.tick();
+    }
+
+    // Poll LED state after executing cycles
+    updateLEDs(cpu);
+
+    animFrameId = requestAnimationFrame(simLoop);
+  }
+  animFrameId = requestAnimationFrame(simLoop);
+}
+
+function stopSim() {
+  running = false;
+  if (animFrameId) { cancelAnimationFrame(animFrameId); animFrameId = null; }
+  cpu = null;
+  currentUSART = null;
+  for (const [pin, el] of Object.entries(ledEls)) el.className = 'led-circle off';
+  setStatus('', 'Aturat');
+  btnRun.disabled = false;
+  btnStop.disabled = true;
+}
+
+btnStop.addEventListener('click', stopSim);
+
+console.log('S4A Simulator loaded');
+</script>
+</body>
+</html>

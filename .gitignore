@@ -1,0 +1,6 @@
+node_modules/
+frontend/deps.bundle.js
+frontend/index_*.html
+.arduino15/
+*.log
+.DS_Store

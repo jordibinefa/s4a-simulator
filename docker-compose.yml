@@ -1,0 +1,12 @@
+services:
+  s4a:
+    build: .
+    container_name: s4a-simulator
+    restart: unless-stopped
+    ports:
+      - "4444:3000"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "2"
