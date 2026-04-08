@@ -2,7 +2,7 @@
 
 > **[Read in English](README.md)**
 
-Simulador web per a estudiants de DAM (Desenvolupament d'Aplicacions Multiplataforma) i cicles formatius afins. Permet escriure, compilar i executar programes d'Arduino Nano directament al navegador, sense necessitat de tenir cap placa física.
+Simulador web per a formació i cicles formatius. Permet escriure, compilar i executar programes d'Arduino Nano directament al navegador, sense necessitat de tenir cap placa física.
 
 Desenvolupat en un centre de Formació Professional de Catalunya com a part d'un conjunt d'eines educatives obertes.
 
